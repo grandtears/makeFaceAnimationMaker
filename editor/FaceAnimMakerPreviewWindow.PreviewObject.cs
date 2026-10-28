@@ -53,7 +53,10 @@ public partial class FaceAnimMakerPreviewWindow
 
         // メッシュ切り替え時は表示位置と折りたたみ状態を初期状態へ戻す。
         previewPan = Vector2.zero;
+        previewDir = new Vector2(180f, 0f);
+        previewDistance = 1f;
         blendShapeFoldouts.Clear();
+        nonZeroBlendShapeIndices.Clear();
         ClearBlendShapeHistory();
         DestroyPreviewAvatar();
 
@@ -64,6 +67,8 @@ public partial class FaceAnimMakerPreviewWindow
         }
 
         InitializePreviewBlendShapeWeights();
+        if (showOnlyNonZeroBlendShapes)
+            ConfirmNonZeroBlendShapeFilter();
 
         // Scene 上の実アバターを直接描画・変更せず、Preview 用に丸ごと複製する。
         // AddSingleGO で GameObject と Renderer と Material を Unity の通常描画に近い形で扱える。
@@ -75,6 +80,15 @@ public partial class FaceAnimMakerPreviewWindow
         // 複製アバター内で、実アバターの selectedRenderer に対応する SkinnedMeshRenderer を探す。
         // 以降の BlendShape 操作はこの複製側 renderer にだけ行う。
         previewSelectedRenderer = FindPreviewSelectedRenderer();
+        if (previewSelectedRenderer != null)
+        {
+            // Make the selected mesh visible only on the preview copy.
+            for (Transform current = previewSelectedRenderer.transform; current != null; current = current.parent)
+                current.gameObject.SetActive(true);
+            previewSelectedRenderer.enabled = true;
+            previewSelectedRenderer.forceRenderingOff = false;
+            previewSelectedRenderer.updateWhenOffscreen = true;
+        }
         BuildBlendShapeFocusBounds();
         ApplyPreviewBlendShapeWeights();
         previewUtility.AddSingleGO(previewAvatarRoot);
@@ -111,7 +125,13 @@ public partial class FaceAnimMakerPreviewWindow
         // Renderer / Transform は Behaviour ではないので描画には影響しない。
         Behaviour[] behaviours = root.GetComponentsInChildren<Behaviour>(true);
         for (int i = 0; i < behaviours.Length; i++)
+        {
+            // Missing scripts can leave null entries in the component array.
+            if (behaviours[i] == null)
+                continue;
+
             behaviours[i].enabled = false;
+        }
     }
 
     private SkinnedMeshRenderer FindPreviewSelectedRenderer()

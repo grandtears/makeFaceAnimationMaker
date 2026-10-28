@@ -15,6 +15,21 @@ public partial class FaceAnimMakerPreviewWindow
 
         Mesh mesh = selectedRenderer.sharedMesh;
         Vector3[] vertices = mesh.vertices;
+        // Mesh asset vertices are in bind pose; frame the pose actually shown.
+        if (previewSelectedRenderer != null)
+        {
+            Mesh bakedMesh = new Mesh();
+            try
+            {
+                previewSelectedRenderer.BakeMesh(bakedMesh);
+                if (bakedMesh.vertexCount == mesh.vertexCount)
+                    vertices = bakedMesh.vertices;
+            }
+            finally
+            {
+                DestroyImmediate(bakedMesh);
+            }
+        }
         int vertexCount = vertices.Length;
 
         if (vertexCount == 0 || mesh.blendShapeCount == 0)

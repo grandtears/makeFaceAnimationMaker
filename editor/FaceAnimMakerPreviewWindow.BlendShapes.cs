@@ -29,9 +29,17 @@ public partial class FaceAnimMakerPreviewWindow
             ? "Show All BlendShapes"
             : "Show Non-Zero BlendShapes";
         if (GUILayout.Button(nonZeroFilterButtonLabel, GUILayout.Width(180)))
+        {
             showOnlyNonZeroBlendShapes = !showOnlyNonZeroBlendShapes;
+            if (showOnlyNonZeroBlendShapes)
+                ConfirmNonZeroBlendShapeFilter();
+        }
 
         EditorGUILayout.EndHorizontal();
+
+        if (showOnlyNonZeroBlendShapes &&
+            GUILayout.Button("確定（非ゼロ一覧を更新）"))
+            ConfirmNonZeroBlendShapeFilter();
 
         if (blendShapeCount == 0)
         {
@@ -161,10 +169,19 @@ public partial class FaceAnimMakerPreviewWindow
         if (!showOnlyNonZeroBlendShapes)
             return true;
 
-        if (index < 0 || index >= previewBlendShapeWeights.Length)
-            return false;
+        return nonZeroBlendShapeIndices.Contains(index);
+    }
 
-        return !Mathf.Approximately(previewBlendShapeWeights[index], 0f);
+    private void ConfirmNonZeroBlendShapeFilter()
+    {
+        // Keep rows stable while editing; only confirm updates filter membership.
+        nonZeroBlendShapeIndices.Clear();
+        for (int i = 0; i < previewBlendShapeWeights.Length; i++)
+        {
+            if (!Mathf.Approximately(previewBlendShapeWeights[i], 0f))
+                nonZeroBlendShapeIndices.Add(i);
+        }
+        Repaint();
     }
 
     private void DrawBlendShapeSlider(int index, string shapeName)

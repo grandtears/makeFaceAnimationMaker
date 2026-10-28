@@ -22,6 +22,7 @@ public partial class FaceAnimMakerPreviewWindow : EditorWindow
     private string blendShapeGroupDelimiter = "-";
     private string blendShapeSearchText = "";
     private bool showOnlyNonZeroBlendShapes;
+    private readonly HashSet<int> nonZeroBlendShapeIndices = new();
     private readonly Dictionary<string, bool> blendShapeFoldouts = new();
 
     // 左の Preview ペインと右の BlendShape ペインの分割比。
@@ -49,9 +50,9 @@ public partial class FaceAnimMakerPreviewWindow : EditorWindow
 
     // Preview カメラ操作用の状態。
     // 左ドラッグで回転、右ドラッグでパン、ホイールでズームする。
-    private Vector2 previewDir = new Vector2(120f, -20f);
+    private Vector2 previewDir = new Vector2(180f, 0f);
     private Vector2 previewPan;
-    private float previewDistance = 1.8f;
+    private float previewDistance = 1f;
 
 
     // Unity メニューからウィンドウを開き、左右ペインの大枠を描画する。

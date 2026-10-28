@@ -23,6 +23,9 @@ public partial class FaceAnimMakerPreviewWindow
         }
 
         HandlePreviewInput(rect);
+        if (Event.current.type != EventType.Repaint || rect.width <= 0f || rect.height <= 0f)
+            return;
+
         ApplyPreviewBlendShapeWeights();
 
         // BeginPreview から EndPreview までの間に camera を設定して Render する。
@@ -52,12 +55,31 @@ public partial class FaceAnimMakerPreviewWindow
         if (size <= 0f) size = 1f;
 
         // previewDir からカメラ回転を作り、previewPan で画面内の位置をずらす。
-        Quaternion rotation = Quaternion.Euler(-previewDir.y, -previewDir.x, 0f);
+        Quaternion rotation = previewAvatarRoot.transform.rotation
+            * Quaternion.Euler(-previewDir.y, -previewDir.x, 0f);
         Vector3 right = rotation * Vector3.right;
         Vector3 up = rotation * Vector3.up;
         Vector3 panOffset = (right * previewPan.x + up * previewPan.y) * size;
         Vector3 cameraTarget = center + panOffset;
-        Vector3 cameraPos = cameraTarget + rotation * new Vector3(0f, 0f, -previewDistance * size);
+        // Fit all eight bounds corners to both axes of the actual preview viewport.
+        float tanHalfFov = Mathf.Tan(previewUtility.cameraFieldOfView * 0.5f * Mathf.Deg2Rad);
+        float aspect = rect.width / rect.height;
+        Quaternion inverseRotation = Quaternion.Inverse(rotation);
+        float fitDistance = 0.01f;
+        Vector3 extents = bounds.extents;
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 corner = bounds.center + new Vector3(
+                (i & 1) == 0 ? -extents.x : extents.x,
+                (i & 2) == 0 ? -extents.y : extents.y,
+                (i & 4) == 0 ? -extents.z : extents.z);
+            Vector3 local = inverseRotation * (corner - center);
+            fitDistance = Mathf.Max(fitDistance,
+                Mathf.Abs(local.x) * 1.1f / (tanHalfFov * aspect) - local.z,
+                Mathf.Abs(local.y) * 1.1f / tanHalfFov - local.z,
+                0.02f - local.z);
+        }
+        Vector3 cameraPos = cameraTarget + rotation * new Vector3(0f, 0f, -previewDistance * fitDistance);
 
         previewUtility.camera.transform.position = cameraPos;
         previewUtility.camera.transform.rotation = rotation;
@@ -68,7 +90,7 @@ public partial class FaceAnimMakerPreviewWindow
             farClipSize = Mathf.Max(farClipSize, fullBounds.extents.magnitude);
 
         previewUtility.camera.nearClipPlane = 0.01f;
-        previewUtility.camera.farClipPlane = Mathf.Max(100f, previewDistance * farClipSize * 6f);
+        previewUtility.camera.farClipPlane = Mathf.Max(100f, previewDistance * fitDistance + farClipSize * 6f);
 
         previewUtility.camera.Render();
 
@@ -99,11 +121,12 @@ public partial class FaceAnimMakerPreviewWindow
             Repaint();
         }
 
-        // ダブルクリック: パンとズームを初期状態へ戻す。
+        // Double-click restores the front view and automatic fit.
         if (e.type == EventType.MouseDown && e.clickCount == 2)
         {
             previewPan = Vector2.zero;
-            previewDistance = 1.8f;
+            previewDir = new Vector2(180f, 0f);
+            previewDistance = 1f;
             e.Use();
             Repaint();
         }
